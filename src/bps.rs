@@ -64,22 +64,10 @@ impl BpsPatch {
                 Ok(Action::SourceRead) => (length, Record::SourceRead),
                 Ok(Action::TargetRead) => (length, Record::TargetRead(data.read_vec(length)?)),
                 Ok(Action::SourceCopy) => {
-                    let num = data.read_var_int()?;
-                    (
-                        length,
-                        Record::SourceCopy(
-                            if num & 0b1 != 0 { -1 } else { 1 } * (num >> 1) as isize,
-                        ),
-                    )
+                    (length, Record::SourceCopy(Self::read_copy_size(&mut data)?))
                 }
                 Ok(Action::TargetCopy) => {
-                    let num = data.read_var_int()?;
-                    (
-                        length,
-                        Record::TargetCopy(
-                            if num & 0b1 != 0 { -1 } else { 1 } * (num >> 1) as isize,
-                        ),
-                    )
+                    (length, Record::TargetCopy(Self::read_copy_size(&mut data)?))
                 }
                 Err(_) => {
                     todo!();
@@ -103,6 +91,12 @@ impl BpsPatch {
         this.export(Some(u32::from_le_bytes(data.read_arr()?)))?;
         Ok(this)
     }
+
+    #[inline(always)]
+    fn read_copy_size(data: &mut impl std::io::Read) -> Result<isize> {
+        let num = data.read_var_int()?;
+        Ok(if num & 0b1 != 0 { -1 } else { 1 } * (num >> 1) as isize)
+    }
 }
 
 impl Patch for BpsPatch {
@@ -113,9 +107,10 @@ impl Patch for BpsPatch {
         let mut src_offset = 0;
         let mut out_offset = 0;
         for (length, record) in self.records.iter() {
+            let length = *length;
             match record {
                 Record::SourceRead => {
-                    buf.write_all(&rom[buf.len()..][..*length])?;
+                    buf.write_all(&rom[buf.len()..][..length])?;
                 }
                 Record::TargetRead(data) => {
                     buf.write_all(data)?;
@@ -126,7 +121,7 @@ impl Patch for BpsPatch {
                     } else {
                         src_offset + offset.unsigned_abs()
                     };
-                    buf.write_all(&rom[src_offset..][..*length])?;
+                    buf.write_all(&rom[src_offset..][..length])?;
                     src_offset += length;
                 }
                 &Record::TargetCopy(offset) => {
@@ -137,7 +132,8 @@ impl Patch for BpsPatch {
                     };
                     // we cant use copy_from_slice or extend because we have to be able to read from
                     // the data as we write it
-                    for _ in 0..*length {
+                    buf.reserve(length);
+                    for _ in 0..length {
                         buf.push(buf[out_offset]);
                         out_offset += 1;
                     }
