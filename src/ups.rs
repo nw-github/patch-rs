@@ -123,14 +123,13 @@ impl Patch for UpsPatch {
         buf.write_var_int(self.src_data.size)?;
         buf.write_var_int(self.out_data.size)?;
 
-        for i in 0..self.records.len() {
-            let mut relative = self.records[i].0;
-            if i > 0 {
-                relative -= self.records[i - 1].0 + self.records[i - 1].1.len();
-            }
-
-            buf.write_var_int(relative)?;
-            buf.write_all(&self.records[i].1)?;
+        for (i, record) in self.records.iter().enumerate() {
+            buf.write_var_int(if i > 0 {
+                record.0 - (self.records[i - 1].0 + self.records[i - 1].1.len())
+            } else {
+                record.0
+            })?;
+            buf.write_all(&record.1)?;
         }
 
         buf.write_u32::<LE>(self.src_data.crc)?;
