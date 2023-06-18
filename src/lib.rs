@@ -41,6 +41,8 @@ pub enum Error {
     InvalidSize(usize, usize),
     #[error("CRC ({0:#X}) does not match expected value ({1:#X}).")]
     InvalidCRC(u32, u32),
+    #[error("The patch is invalid.")]
+    InvalidPatch,
 }
 
 impl From<std::io::Error> for Error {

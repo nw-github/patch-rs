@@ -105,8 +105,8 @@ impl Patch for BpsPatch {
         self.validate(rom).unwrap()?;
 
         let mut buf = Vec::with_capacity(self.out_data.size);
-        let mut src_offset = 0;
-        let mut out_offset = 0;
+        let mut src_offset: usize = 0;
+        let mut out_offset: usize = 0;
         for (length, record) in self.records.iter() {
             let length = *length;
             match record {
@@ -117,20 +117,12 @@ impl Patch for BpsPatch {
                     buf.write_all(data)?;
                 }
                 &Record::SourceCopy(offset) => {
-                    src_offset = if offset.is_negative() {
-                        src_offset - offset.unsigned_abs()
-                    } else {
-                        src_offset + offset.unsigned_abs()
-                    };
+                    src_offset = src_offset.checked_add_signed(offset).ok_or(Error::InvalidPatch)?;
                     buf.write_all(&rom[src_offset..][..length])?;
                     src_offset += length;
                 }
                 &Record::TargetCopy(offset) => {
-                    out_offset = if offset.is_negative() {
-                        out_offset - offset.unsigned_abs()
-                    } else {
-                        out_offset + offset.unsigned_abs()
-                    };
+                    out_offset = out_offset.checked_add_signed(offset).ok_or(Error::InvalidPatch)?;
                     // we cant use copy_from_slice or extend because we have to be able to read from
                     // the data as we write it
                     for _ in 0..length {
