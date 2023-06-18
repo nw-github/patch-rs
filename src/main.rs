@@ -29,10 +29,13 @@ fn load_patch(path: impl AsRef<Path>) -> Result<Box<dyn Patch>> {
     match path.extension().and_then(|s| s.to_str()) {
         Some("ips") => Ok(box_inner!(IpsPatch::load(&data))?),
         Some("ups") => Ok(box_inner!(UpsPatch::load(&data))?),
+        Some("bps") => Ok(box_inner!(BpsPatch::load(&data))?),
         _ => {
             if let Ok(patch) = IpsPatch::load(&data) {
                 Ok(Box::new(patch))
             } else if let Ok(patch) = UpsPatch::load(&data) {
+                Ok(Box::new(patch))
+            } else if let Ok(patch) = BpsPatch::load(&data) {
                 Ok(Box::new(patch))
             } else {
                 bail!("Patch file is unsupported.");
