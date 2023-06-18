@@ -75,18 +75,7 @@ impl UpsPatch {
 
 impl Patch for UpsPatch {
     fn apply(&self, rom: &[u8]) -> Result<Vec<u8>> {
-        if self.old_size as usize != rom.len() {
-            return Err(Error::InvalidSize(
-                "ROM file",
-                rom.len(),
-                self.old_size as usize,
-            ));
-        }
-
-        let hash = crc32fast::hash(rom);
-        if hash != self.old_crc {
-            return Err(Error::InvalidCRC("ROM", hash, self.old_crc));
-        }
+        self.validate(rom).unwrap()?;
 
         let mut buf = Vec::from(rom);
         if self.new_size as usize > buf.len() {
@@ -105,6 +94,23 @@ impl Patch for UpsPatch {
         }
 
         Ok(buf)
+    }
+
+    fn validate(&self, rom: &[u8]) -> Option<Result<()>> {
+        if self.old_size as usize != rom.len() {
+            return Some(Err(Error::InvalidSize(
+                "ROM file",
+                rom.len(),
+                self.old_size as usize,
+            )));
+        }
+
+        let hash = crc32fast::hash(rom);
+        if hash != self.old_crc {
+            return Some(Err(Error::InvalidCRC("ROM", hash, self.old_crc)));
+        }
+
+        Some(Ok(()))
     }
 
     fn export(&self, crc: Option<u32>) -> Result<Vec<u8>> {

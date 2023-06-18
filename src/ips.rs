@@ -92,6 +92,10 @@ impl Patch for IpsPatch {
         Ok(buf)
     }
 
+    fn validate(&self, _rom: &[u8]) -> Option<Result<()>> {
+        None
+    }
+
     fn export(&self, _crc: Option<u32>) -> Result<Vec<u8>> {
         let mut buf = Vec::with_capacity(self.records.iter().fold(
             Self::MAGIC.len(),

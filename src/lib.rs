@@ -47,5 +47,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait Patch {
     fn apply(&self, rom: &[u8]) -> Result<Vec<u8>>;
+    fn validate(&self, rom: &[u8]) -> Option<Result<()>>;
     fn export(&self, crc: Option<u32>) -> Result<Vec<u8>>;
 }
