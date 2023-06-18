@@ -1,4 +1,8 @@
-use std::io::{self, Read};
+use std::{
+    io::{self, Read},
+    mem::{self, MaybeUninit},
+    slice,
+};
 
 use thiserror::Error;
 
@@ -16,15 +20,22 @@ pub mod prelude {
 pub(crate) trait ReadExt: Read {
     #[inline]
     fn read_arr<const N: usize>(&mut self) -> io::Result<[u8; N]> {
-        let mut buf = [0u8; N];
-        self.read_exact(&mut buf)?;
-        Ok(buf)
+        unsafe {
+            let mut buf: [MaybeUninit<u8>; N] = MaybeUninit::uninit().assume_init();
+            self.read_exact(mem::transmute(buf.as_mut_slice()))?;
+            // we'd like to use `Ok(std::mem::transmute(buf))`
+            // but as of rust 1.69 this won't compile with N as a generic const
+            Ok(*(&buf as *const _ as *const _))
+        }
     }
 
     #[inline]
     fn read_vec(&mut self, len: usize) -> io::Result<Vec<u8>> {
-        let mut buf = vec![0; len];
-        self.read_exact(&mut buf)?;
+        let mut buf = Vec::with_capacity(len);
+        unsafe {
+            self.read_exact(slice::from_raw_parts_mut(buf.as_mut_ptr(), len))?;
+            buf.set_len(len);
+        }
         Ok(buf)
     }
 }
