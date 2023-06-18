@@ -1,5 +1,5 @@
 use crate::ReadExt;
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use std::io::{BufRead, Read, Write};
 use thiserror::Error;
 
@@ -20,9 +20,14 @@ pub struct Patch {
 }
 
 impl Patch {
+    const MAGIC: &[u8; 4] = b"UPS1";
+
     pub fn load(mut patch: &[u8]) -> Result<Self> {
-        if patch.read_arr()? != *b"UPS1" {
-            return Err(anyhow!("Patch file is missing the 'UPS1' magic value."));
+        if patch.read_arr()? != *Self::MAGIC {
+            bail!(
+                "Patch file is missing the '{}' magic value.",
+                std::str::from_utf8(Self::MAGIC).unwrap()
+            );
         }
 
         let old_size = Self::decode_var_int(&mut patch)?;
@@ -85,7 +90,7 @@ impl Patch {
     fn save(&self, expected_crc: u32) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
 
-        buf.write_all(b"UPS1")?;
+        buf.write_all(Self::MAGIC)?;
         Self::encode_var_int(&mut buf, self.old_size)?;
         Self::encode_var_int(&mut buf, self.new_size)?;
 
@@ -111,7 +116,7 @@ impl Patch {
         Ok(buf)
     }
 
-    fn decode_var_int(data: &mut impl Read) -> Result<u64> {
+    fn decode_var_int(data: &mut impl Read) -> std::io::Result<u64> {
         let mut value = 0;
         let mut shift = 1;
         loop {
@@ -126,7 +131,7 @@ impl Patch {
         }
     }
 
-    fn encode_var_int(out: &mut impl Write, mut value: u64) -> Result<()> {
+    fn encode_var_int(out: &mut impl Write, mut value: u64) -> std::io::Result<()> {
         loop {
             let x = (value & 0x7f) as u8;
             value >>= 7;
