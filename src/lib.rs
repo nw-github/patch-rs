@@ -16,3 +16,7 @@ pub(crate) trait ReadExt : Read {
 }
 
 impl<T: Read + ?Sized> ReadExt for T {}
+
+pub trait Patch {
+    fn apply(&self, rom: &[u8]) -> anyhow::Result<Vec<u8>>;
+}

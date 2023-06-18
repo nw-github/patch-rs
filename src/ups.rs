@@ -1,4 +1,4 @@
-use crate::ReadExt;
+use crate::{ReadExt, Patch};
 use anyhow::{bail, Result};
 use std::io::{BufRead, Read, Write};
 use thiserror::Error;
@@ -11,7 +11,7 @@ pub enum PatchError {
     InvalidCRC(&'static str, u32, u32),
 }
 
-pub struct Patch {
+pub struct UpsPatch {
     old_size: u64,
     new_size: u64,
     old_crc: u32,
@@ -19,7 +19,7 @@ pub struct Patch {
     records: Vec<(usize, Vec<u8>)>,
 }
 
-impl Patch {
+impl UpsPatch {
     const MAGIC: &[u8; 4] = b"UPS1";
 
     pub fn load(mut patch: &[u8]) -> Result<Self> {
@@ -54,37 +54,6 @@ impl Patch {
 
         result.save(u32::from_le_bytes(patch.read_arr()?))?;
         Ok(result)
-    }
-
-    pub fn apply(&self, rom: &[u8]) -> Result<Vec<u8>> {
-        if self.old_size as usize != rom.len() {
-            return Err(
-                PatchError::InvalidSize("ROM file", rom.len(), self.old_size as usize).into(),
-            );
-        }
-
-        let hash = crc32fast::hash(&rom);
-        if hash != self.old_crc {
-            return Err(PatchError::InvalidCRC("ROM", hash, self.old_crc).into());
-        }
-
-        let mut buf = Vec::from(rom);
-        if self.new_size as usize > buf.len() {
-            buf.resize(self.new_size as usize, 0);
-        }
-
-        for (offset, xor_bytes) in self.records.iter() {
-            for u in 0..xor_bytes.len() - 1 {
-                buf[*offset + u] ^= xor_bytes[u];
-            }
-        }
-
-        let hash = crc32fast::hash(&buf);
-        if hash != self.new_crc {
-            return Err(PatchError::InvalidCRC("patched ROM", hash, self.new_crc).into());
-        }
-
-        Ok(buf)
     }
 
     fn save(&self, expected_crc: u32) -> Result<Vec<u8>> {
@@ -143,5 +112,38 @@ impl Patch {
             out.write_all(&[x])?;
             value -= 1;
         }
+    }
+}
+
+impl Patch for UpsPatch {
+    fn apply(&self, rom: &[u8]) -> Result<Vec<u8>> {
+        if self.old_size as usize != rom.len() {
+            return Err(
+                PatchError::InvalidSize("ROM file", rom.len(), self.old_size as usize).into(),
+            );
+        }
+
+        let hash = crc32fast::hash(&rom);
+        if hash != self.old_crc {
+            return Err(PatchError::InvalidCRC("ROM", hash, self.old_crc).into());
+        }
+
+        let mut buf = Vec::from(rom);
+        if self.new_size as usize > buf.len() {
+            buf.resize(self.new_size as usize, 0);
+        }
+
+        for (offset, xor_bytes) in self.records.iter() {
+            for u in 0..xor_bytes.len() - 1 {
+                buf[*offset + u] ^= xor_bytes[u];
+            }
+        }
+
+        let hash = crc32fast::hash(&buf);
+        if hash != self.new_crc {
+            return Err(PatchError::InvalidCRC("patched ROM", hash, self.new_crc).into());
+        }
+
+        Ok(buf)
     }
 }
