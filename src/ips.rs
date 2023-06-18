@@ -19,7 +19,9 @@ impl IpsPatch {
 
     pub fn load(mut data: &[u8]) -> Result<Self> {
         if data.read_arr()? != *Self::MAGIC {
-            return Err(Error::Magic(std::str::from_utf8(Self::MAGIC).unwrap()));
+            return Err(Error::Magic(unsafe {
+                std::str::from_utf8_unchecked(Self::MAGIC)
+            }));
         }
 
         let mut records = Vec::new();
@@ -37,12 +39,15 @@ impl IpsPatch {
             }
 
             let len = data.read_u16::<BE>()?;
-            records.push((offset as usize, if len != 0 {
-                Record::Bytes(data.read_vec(len as usize)?)
-            } else {
-                let len = data.read_u16::<BE>()?;
-                Record::ByteRun(data.read_u8()?, len)
-            }));
+            records.push((
+                offset as usize,
+                if len != 0 {
+                    Record::Bytes(data.read_vec(len as usize)?)
+                } else {
+                    let len = data.read_u16::<BE>()?;
+                    Record::ByteRun(data.read_u8()?, len)
+                },
+            ));
         }
 
         Ok(Self {

@@ -47,7 +47,9 @@ impl BpsPatch {
 
     pub fn load(mut data: &[u8]) -> Result<Self> {
         if data.read_arr()? != *Self::MAGIC {
-            return Err(Error::Magic(std::str::from_utf8(Self::MAGIC).unwrap()));
+            return Err(Error::Magic(unsafe {
+                std::str::from_utf8_unchecked(Self::MAGIC)
+            }));
         }
 
         let src_size = data.read_var_int()?;
@@ -71,7 +73,7 @@ impl BpsPatch {
                     (length, Record::TargetCopy(Self::read_copy_size(&mut data)?))
                 }
                 Err(_) => {
-                    todo!();
+                    return Err(Error::InvalidPatch);
                 }
             });
         }
@@ -117,12 +119,16 @@ impl Patch for BpsPatch {
                     buf.write_all(data)?;
                 }
                 &Record::SourceCopy(offset) => {
-                    src_offset = src_offset.checked_add_signed(offset).ok_or(Error::InvalidPatch)?;
+                    src_offset = src_offset
+                        .checked_add_signed(offset)
+                        .ok_or(Error::InvalidPatch)?;
                     buf.write_all(&rom[src_offset..][..length])?;
                     src_offset += length;
                 }
                 &Record::TargetCopy(offset) => {
-                    out_offset = out_offset.checked_add_signed(offset).ok_or(Error::InvalidPatch)?;
+                    out_offset = out_offset
+                        .checked_add_signed(offset)
+                        .ok_or(Error::InvalidPatch)?;
                     // we cant use copy_from_slice or extend because we have to be able to read from
                     // the data as we write it
                     for _ in 0..length {

@@ -21,7 +21,9 @@ impl UpsPatch {
 
     pub fn load(mut patch: &[u8]) -> Result<Self> {
         if patch.read_arr()? != *Self::MAGIC {
-            return Err(Error::Magic(std::str::from_utf8(Self::MAGIC).unwrap()));
+            return Err(Error::Magic(unsafe {
+                std::str::from_utf8_unchecked(Self::MAGIC)
+            }));
         }
 
         let old_size = patch.read_var_int()?;
@@ -99,7 +101,7 @@ impl Patch for UpsPatch {
         let mut buf = vec![0; self.out_data.size];
         let size = rom.len().min(buf.len());
         buf[..size].copy_from_slice(&rom[..size]);
-        
+
         for (offset, xor_bytes) in self.records.iter() {
             for u in 0..xor_bytes.len() - 1 {
                 buf[*offset + u] ^= xor_bytes[u];
