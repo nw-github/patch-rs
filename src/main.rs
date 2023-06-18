@@ -1,6 +1,6 @@
 use clap::Parser;
 use patch_rs::ups::Patch;
-use std::{fs, path::PathBuf};
+use std::{ffi::OsStr, fs, path::PathBuf};
 
 #[derive(Parser)]
 struct Arguments {
@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
                 .unwrap()
                 .to_string_lossy(),
             args.rom.extension()
-                .unwrap_or(&std::ffi::OsStr::new("rom"))
+                .unwrap_or(&OsStr::new("rom"))
                 .to_string_lossy()
         ))),
         patch.apply(&rom)?,
