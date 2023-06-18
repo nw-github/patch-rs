@@ -2,16 +2,16 @@ use std::io::{self, Read};
 
 use thiserror::Error;
 
-mod ups;
 mod ips;
+mod ups;
 
 pub mod prelude {
-    pub use super::ups::UpsPatch;
     pub use super::ips::IpsPatch;
+    pub use super::ups::UpsPatch;
     pub use super::Patch;
 }
 
-pub(crate) trait ReadExt : Read {
+pub(crate) trait ReadExt: Read {
     fn read_arr<const N: usize>(&mut self) -> io::Result<[u8; N]> {
         let mut buf = [0u8; N];
         self.read_exact(&mut buf)?;

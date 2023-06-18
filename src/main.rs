@@ -1,7 +1,11 @@
 use anyhow::{bail, Result};
 use clap::Parser;
 use patch_rs::prelude::*;
-use std::{ffi::OsStr, fs, path::{PathBuf, Path}};
+use std::{
+    ffi::OsStr,
+    fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Parser)]
 struct Arguments {

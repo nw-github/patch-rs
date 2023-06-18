@@ -1,4 +1,4 @@
-use crate::{Patch, Result, ReadExt, Error};
+use crate::{Error, Patch, ReadExt, Result};
 use std::io::{BufRead, Read, Write};
 
 pub struct UpsPatch {
@@ -76,9 +76,11 @@ impl UpsPatch {
 impl Patch for UpsPatch {
     fn apply(&self, rom: &[u8]) -> Result<Vec<u8>> {
         if self.old_size as usize != rom.len() {
-            return Err(
-                Error::InvalidSize("ROM file", rom.len(), self.old_size as usize),
-            );
+            return Err(Error::InvalidSize(
+                "ROM file",
+                rom.len(),
+                self.old_size as usize,
+            ));
         }
 
         let hash = crc32fast::hash(rom);
