@@ -62,6 +62,7 @@ pub(crate) mod bps_ups {
 
     use crate::{Error, Result};
 
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     pub struct Validation {
         pub size: usize,
         pub crc: u32,

@@ -4,8 +4,12 @@ use crate::{
     bps_ups::{self, ReadVarExt, WriteVarExt},
     Error, Patch, ReadExt, Result,
 };
-use std::io::{BufRead, Write};
+use std::{
+    io::{BufRead, Write},
+    iter,
+};
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UpsPatch {
     src_data: bps_ups::Validation,
     out_data: bps_ups::Validation,
@@ -49,17 +53,53 @@ impl UpsPatch {
         result.export(Some(patch.read_u32::<LE>()?))?;
         Ok(result)
     }
+
+    pub fn create(src: &[u8], dst: &[u8]) -> Self {
+        let mut records = Vec::new();
+        let mut iter = src
+            .iter()
+            .chain(iter::repeat(&0).take(dst.len().saturating_sub(src.len())))
+            .zip(dst.iter())
+            .enumerate();
+        while let Some((i, (s, d))) = iter.next() {
+            if s != d {
+                records.push((
+                    i,
+                    iter::once((s, d))
+                        .chain(
+                            iter.by_ref()
+                                .take_while(|(_, (s, d))| s != d)
+                                .map(|(_, bytes)| bytes),
+                        )
+                        .map(|(s, d)| s ^ d)
+                        .chain(iter::once(0))
+                        .collect(),
+                ));
+            }
+        }
+
+        Self {
+            src_data: bps_ups::Validation {
+                size: src.len(),
+                crc: crc32fast::hash(src),
+            },
+            out_data: bps_ups::Validation {
+                size: dst.len(),
+                crc: crc32fast::hash(dst),
+            },
+            records,
+        }
+    }
 }
 
 impl Patch for UpsPatch {
     fn apply(&self, rom: &[u8]) -> Result<Vec<u8>> {
         self.validate(rom).unwrap()?;
 
-        let mut buf = Vec::from(rom);
-        if self.out_data.size > buf.len() {
-            buf.resize(self.out_data.size, 0);
-        }
-
+        let mut buf = vec![0; self.out_data.size];
+        let size = rom.len().min(buf.len());
+        buf[..size].copy_from_slice(&rom[..size]);
+        
         for (offset, xor_bytes) in self.records.iter() {
             for u in 0..xor_bytes.len() - 1 {
                 buf[*offset + u] ^= xor_bytes[u];
@@ -103,5 +143,37 @@ impl Patch for UpsPatch {
 
         buf.write_u32::<LE>(hash)?;
         Ok(buf)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn patch_same_len() {
+        let src = b"It's better to be happy than to be right.";
+        let dst = b"It's better to be right than to be happy.";
+
+        let patch = UpsPatch::create(src, dst);
+        assert_eq!(&patch.apply(src).unwrap(), dst);
+    }
+
+    #[test]
+    fn patch_shorter_src() {
+        let src = b"/bin/true";
+        let dst = b"/usr/bin/sh";
+
+        let patch = UpsPatch::create(src, dst);
+        assert_eq!(&patch.apply(src).unwrap(), dst);
+    }
+
+    #[test]
+    fn patch_shorter_dst() {
+        let src = b"The source is longer.";
+        let dst = b"The dest is shorter.";
+
+        let patch = UpsPatch::create(src, dst);
+        assert_eq!(&patch.apply(src).unwrap(), dst);
     }
 }
