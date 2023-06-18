@@ -140,14 +140,3 @@ impl Patch {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_emerald_rogue_ex_1_3_1() {
-        let rom = include_bytes!("../.test/pokeemerald.gba");
-        let ups = include_bytes!("../.test/pokeemeraldrogue_EX_1.3.1a.ups");
-        let patch = super::Patch::load(ups).unwrap();
-        patch.apply(rom).unwrap();
-    }
-}
