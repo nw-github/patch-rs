@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 
 use crate::{Error, Patch, ReadExt, Result};
 
@@ -24,21 +24,21 @@ impl IpsPatch {
 
         let mut records = Vec::new();
         while !data.is_empty() {
-            let offset = data.read_u24::<BigEndian>()?;
+            let offset = data.read_u24::<BE>()?;
             if offset == u32::from_be_bytes(*b"\0EOF") {
                 if data.len() == 3 {
                     return Ok(Self {
                         records,
-                        outsz: Some(data.read_u24::<BigEndian>()? as usize),
+                        outsz: Some(data.read_u24::<BE>()? as usize),
                     });
                 }
 
                 break;
             }
 
-            let len = data.read_u16::<BigEndian>()?;
+            let len = data.read_u16::<BE>()?;
             if len == 0 {
-                let len = data.read_u16::<BigEndian>()?;
+                let len = data.read_u16::<BE>()?;
                 records.push((offset as usize, Record::ByteRun(data.read_u8()?, len)));
             } else {
                 let mut buf = vec![0; len as usize];
@@ -101,23 +101,23 @@ impl Patch for IpsPatch {
 
         buf.write_all(Self::MAGIC)?;
         for (offset, record) in self.records.iter() {
-            buf.write_u24::<BigEndian>(*offset as u32)?;
+            buf.write_u24::<BE>(*offset as u32)?;
             match record {
                 Record::Bytes(data) => {
-                    buf.write_all(&(data.len() as u16).to_be_bytes())?;
+                    buf.write_u16::<BE>(data.len() as _)?;
                     buf.write_all(data)?;
                 }
                 Record::ByteRun(byte, len) => {
-                    buf.write_all(&0u16.to_be_bytes())?;
-                    buf.write_all(&len.to_be_bytes())?;
-                    buf.write_all(&[*byte])?;
+                    buf.write_u16::<BE>(0)?;
+                    buf.write_u16::<BE>(*len)?;
+                    buf.write_u8(*byte)?;
                 }
             }
         }
 
         buf.write_all(b"EOF")?;
         if let Some(outsz) = self.outsz {
-            buf.write_u24::<BigEndian>(outsz as u32)?;
+            buf.write_u24::<BE>(outsz as _)?;
         }
 
         Ok(buf)

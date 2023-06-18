@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 
 use crate::{
     bps_ups::{self, ReadVarExt, WriteVarExt},
@@ -37,16 +37,16 @@ impl UpsPatch {
         let result = Self {
             src_data: bps_ups::Validation {
                 size: old_size,
-                crc: patch.read_u32::<LittleEndian>()?,
+                crc: patch.read_u32::<LE>()?,
             },
             out_data: bps_ups::Validation {
                 size: new_size,
-                crc: patch.read_u32::<LittleEndian>()?,
+                crc: patch.read_u32::<LE>()?,
             },
             records,
         };
 
-        result.export(Some(patch.read_u32::<LittleEndian>()?))?;
+        result.export(Some(patch.read_u32::<LE>()?))?;
         Ok(result)
     }
 }
@@ -91,8 +91,8 @@ impl Patch for UpsPatch {
             buf.write_all(&self.records[i].1)?;
         }
 
-        buf.write_all(&self.src_data.crc.to_le_bytes())?;
-        buf.write_all(&self.out_data.crc.to_le_bytes())?;
+        buf.write_u32::<LE>(self.src_data.crc)?;
+        buf.write_u32::<LE>(self.out_data.crc)?;
 
         let hash = crc32fast::hash(&buf);
         if let Some(crc) = crc {
@@ -101,7 +101,7 @@ impl Patch for UpsPatch {
             }
         }
 
-        buf.write_all(&hash.to_le_bytes())?;
+        buf.write_u32::<LE>(hash)?;
         Ok(buf)
     }
 }

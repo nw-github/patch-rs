@@ -58,7 +58,7 @@ pub trait Patch {
 pub(crate) mod bps_ups {
     use std::io::{Read, Write};
 
-    use byteorder::ReadBytesExt;
+    use byteorder::{ReadBytesExt, WriteBytesExt};
 
     use crate::{Error, Result};
 
@@ -107,11 +107,11 @@ pub(crate) mod bps_ups {
                 let x = (value & 0x7f) as u8;
                 value >>= 7;
                 if value == 0 {
-                    self.write_all(&[0x80 | x])?;
+                    self.write_u8(0x80 | x)?;
                     return Ok(());
                 }
 
-                self.write_all(&[x])?;
+                self.write_u8(x)?;
                 value -= 1;
             }
         }

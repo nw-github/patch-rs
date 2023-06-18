@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use num_enum::TryFromPrimitive;
 
 use crate::{
@@ -79,17 +79,17 @@ impl BpsPatch {
         let this = Self {
             src_data: bps_ups::Validation {
                 size: src_size,
-                crc: data.read_u32::<LittleEndian>()?,
+                crc: data.read_u32::<LE>()?,
             },
             out_data: bps_ups::Validation {
                 size: out_size,
-                crc: data.read_u32::<LittleEndian>()?,
+                crc: data.read_u32::<LE>()?,
             },
             metadata,
             records,
         };
 
-        this.export(Some(data.read_u32::<LittleEndian>()?))?;
+        this.export(Some(data.read_u32::<LE>()?))?;
         Ok(this)
     }
 
@@ -177,8 +177,8 @@ impl Patch for BpsPatch {
             }
         }
 
-        buf.write_all(&self.src_data.crc.to_le_bytes())?;
-        buf.write_all(&self.out_data.crc.to_le_bytes())?;
+        buf.write_u32::<LE>(self.src_data.crc)?;
+        buf.write_u32::<LE>(self.out_data.crc)?;
 
         let hash = crc32fast::hash(&buf);
         if let Some(crc) = crc {
@@ -187,7 +187,7 @@ impl Patch for BpsPatch {
             }
         }
 
-        buf.write_all(&hash.to_le_bytes())?;
+        buf.write_u32::<LE>(hash)?;
         Ok(buf)
     }
 }
