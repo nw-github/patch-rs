@@ -9,11 +9,11 @@ use std::{
 
 #[derive(Parser)]
 struct Arguments {
-    /// The ROM file to patch.
+    /// The ROM file to patch
     rom: PathBuf,
-    /// The UPS patch file.
+    /// The patch file (Supported formats are UPS, BPS, and IPS)
     patch: PathBuf,
-    /// The output file.
+    /// The output file
     dest: Option<PathBuf>,
 }
 
