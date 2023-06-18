@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use byteorder::{LittleEndian, ReadBytesExt};
 use num_enum::TryFromPrimitive;
 
 use crate::{
@@ -78,17 +79,17 @@ impl BpsPatch {
         let this = Self {
             src_data: bps_ups::Validation {
                 size: src_size,
-                crc: u32::from_le_bytes(data.read_arr()?),
+                crc: data.read_u32::<LittleEndian>()?,
             },
             out_data: bps_ups::Validation {
                 size: out_size,
-                crc: u32::from_le_bytes(data.read_arr()?),
+                crc: data.read_u32::<LittleEndian>()?,
             },
             metadata,
             records,
         };
 
-        this.export(Some(u32::from_le_bytes(data.read_arr()?)))?;
+        this.export(Some(data.read_u32::<LittleEndian>()?))?;
         Ok(this)
     }
 

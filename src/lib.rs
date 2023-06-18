@@ -25,10 +25,6 @@ pub(crate) trait ReadExt: Read {
         self.read_exact(&mut buf)?;
         Ok(buf)
     }
-
-    fn read_u8(&mut self) -> io::Result<u8> {
-        Ok(self.read_arr::<1>()?[0])
-    }
 }
 
 impl<T: Read + ?Sized> ReadExt for T {}
@@ -62,7 +58,9 @@ pub trait Patch {
 pub(crate) mod bps_ups {
     use std::io::{Read, Write};
 
-    use crate::{Error, ReadExt, Result};
+    use byteorder::ReadBytesExt;
+
+    use crate::{Error, Result};
 
     pub struct Validation {
         pub size: usize,

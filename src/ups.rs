@@ -1,3 +1,5 @@
+use byteorder::{LittleEndian, ReadBytesExt};
+
 use crate::{
     bps_ups::{self, ReadVarExt, WriteVarExt},
     Error, Patch, ReadExt, Result,
@@ -35,16 +37,16 @@ impl UpsPatch {
         let result = Self {
             src_data: bps_ups::Validation {
                 size: old_size,
-                crc: u32::from_le_bytes(patch.read_arr()?),
+                crc: patch.read_u32::<LittleEndian>()?,
             },
             out_data: bps_ups::Validation {
                 size: new_size,
-                crc: u32::from_le_bytes(patch.read_arr()?),
+                crc: patch.read_u32::<LittleEndian>()?,
             },
             records,
         };
 
-        result.export(Some(u32::from_le_bytes(patch.read_arr()?)))?;
+        result.export(Some(patch.read_u32::<LittleEndian>()?))?;
         Ok(result)
     }
 }

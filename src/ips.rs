@@ -1,5 +1,7 @@
 use std::io::{Read, Write};
 
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+
 use crate::{Error, Patch, ReadExt, Result};
 
 enum Record {
@@ -22,21 +24,21 @@ impl IpsPatch {
 
         let mut records = Vec::new();
         while !data.is_empty() {
-            let offset = Self::read_u24(&mut data)?;
+            let offset = data.read_u24::<BigEndian>()?;
             if offset == u32::from_be_bytes(*b"\0EOF") {
                 if data.len() == 3 {
                     return Ok(Self {
                         records,
-                        outsz: Some(Self::read_u24(&mut data)? as usize),
+                        outsz: Some(data.read_u24::<BigEndian>()? as usize),
                     });
                 }
 
                 break;
             }
 
-            let len = u16::from_be_bytes(data.read_arr()?);
+            let len = data.read_u16::<BigEndian>()?;
             if len == 0 {
-                let len = u16::from_be_bytes(data.read_arr()?);
+                let len = data.read_u16::<BigEndian>()?;
                 records.push((offset as usize, Record::ByteRun(data.read_u8()?, len)));
             } else {
                 let mut buf = vec![0; len as usize];
@@ -47,18 +49,8 @@ impl IpsPatch {
 
         Ok(Self {
             records,
-            outsz: None
+            outsz: None,
         })
-    }
-
-    fn read_u24(data: &mut impl Read) -> std::io::Result<u32> {
-        let mut buf = [0; 4];
-        data.read_exact(&mut buf[1..])?;
-        Ok(u32::from_be_bytes(buf))
-    }
-
-    fn write_u24(data: &mut impl Write, val: u32) -> std::io::Result<()> {
-        data.write_all(&val.to_be_bytes()[1..])
     }
 }
 
@@ -109,7 +101,7 @@ impl Patch for IpsPatch {
 
         buf.write_all(Self::MAGIC)?;
         for (offset, record) in self.records.iter() {
-            Self::write_u24(&mut buf, *offset as u32)?;
+            buf.write_u24::<BigEndian>(*offset as u32)?;
             match record {
                 Record::Bytes(data) => {
                     buf.write_all(&(data.len() as u16).to_be_bytes())?;
@@ -125,7 +117,7 @@ impl Patch for IpsPatch {
 
         buf.write_all(b"EOF")?;
         if let Some(outsz) = self.outsz {
-            Self::write_u24(&mut buf, outsz as u32)?;
+            buf.write_u24::<BigEndian>(outsz as u32)?;
         }
 
         Ok(buf)
