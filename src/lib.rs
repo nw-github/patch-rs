@@ -1,6 +1,7 @@
 use std::io::{self, Read};
 
 pub mod ups;
+pub mod ips;
 
 pub(crate) trait ReadExt : Read {
     fn read_arr<const N: usize>(&mut self) -> io::Result<[u8; N]> {
