@@ -2,8 +2,14 @@ use std::io::{self, Read};
 
 use thiserror::Error;
 
-pub mod ups;
-pub mod ips;
+mod ups;
+mod ips;
+
+pub mod prelude {
+    pub use super::ups::UpsPatch;
+    pub use super::ips::IpsPatch;
+    pub use super::Patch;
+}
 
 pub(crate) trait ReadExt : Read {
     fn read_arr<const N: usize>(&mut self) -> io::Result<[u8; N]> {
@@ -41,4 +47,5 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub trait Patch {
     fn apply(&self, rom: &[u8]) -> Result<Vec<u8>>;
+    fn export(&self, crc: Option<u32>) -> Result<Vec<u8>>;
 }

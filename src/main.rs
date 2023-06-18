@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use clap::Parser;
-use patch_rs::{ups::UpsPatch, Patch, ips::IpsPatch};
+use patch_rs::prelude::*;
 use std::{ffi::OsStr, fs, path::{PathBuf, Path}};
 
 #[derive(Parser)]

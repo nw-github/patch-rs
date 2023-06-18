@@ -51,41 +51,6 @@ impl IpsPatch {
         })
     }
 
-    pub fn save(&self) -> std::io::Result<Vec<u8>> {
-        let mut buf = Vec::with_capacity(self.records.iter().fold(
-            Self::MAGIC.len(),
-            |acc, (_, record)| {
-                acc + match record {
-                    Record::Bytes(data) => 3 + 2 + data.len(),
-                    Record::ByteRun(_, _) => 3 + 2 + 2 + 1,
-                }
-            },
-        ));
-
-        buf.write_all(Self::MAGIC)?;
-        for (offset, record) in self.records.iter() {
-            Self::write_u24(&mut buf, *offset as u32)?;
-            match record {
-                Record::Bytes(data) => {
-                    buf.write_all(&(data.len() as u16).to_be_bytes())?;
-                    buf.write_all(data)?;
-                }
-                Record::ByteRun(byte, len) => {
-                    buf.write_all(&0u16.to_be_bytes())?;
-                    buf.write_all(&len.to_be_bytes())?;
-                    buf.write_all(&[*byte])?;
-                }
-            }
-        }
-
-        buf.write_all(b"EOF")?;
-        if let Some(outsz) = self.outsz {
-            Self::write_u24(&mut buf, outsz as u32)?;
-        }
-
-        Ok(buf)
-    }
-
     fn read_u24(data: &mut impl Read) -> std::io::Result<u32> {
         let mut buf = [0; 4];
         data.read_exact(&mut buf[1..])?;
@@ -122,6 +87,41 @@ impl Patch for IpsPatch {
                 Record::Bytes(bytes) => buf[*offset..][..bytes.len()].copy_from_slice(bytes),
                 &Record::ByteRun(byte, len) => buf[*offset..][..len as usize].fill(byte),
             }
+        }
+
+        Ok(buf)
+    }
+
+    fn export(&self, _crc: Option<u32>) -> Result<Vec<u8>> {
+        let mut buf = Vec::with_capacity(self.records.iter().fold(
+            Self::MAGIC.len(),
+            |acc, (_, record)| {
+                acc + match record {
+                    Record::Bytes(data) => 3 + 2 + data.len(),
+                    Record::ByteRun(_, _) => 3 + 2 + 2 + 1,
+                }
+            },
+        ));
+
+        buf.write_all(Self::MAGIC)?;
+        for (offset, record) in self.records.iter() {
+            Self::write_u24(&mut buf, *offset as u32)?;
+            match record {
+                Record::Bytes(data) => {
+                    buf.write_all(&(data.len() as u16).to_be_bytes())?;
+                    buf.write_all(data)?;
+                }
+                Record::ByteRun(byte, len) => {
+                    buf.write_all(&0u16.to_be_bytes())?;
+                    buf.write_all(&len.to_be_bytes())?;
+                    buf.write_all(&[*byte])?;
+                }
+            }
+        }
+
+        buf.write_all(b"EOF")?;
+        if let Some(outsz) = self.outsz {
+            Self::write_u24(&mut buf, outsz as u32)?;
         }
 
         Ok(buf)

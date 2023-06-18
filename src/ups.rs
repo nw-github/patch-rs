@@ -39,37 +39,8 @@ impl UpsPatch {
             records,
         };
 
-        result.save(u32::from_le_bytes(patch.read_arr()?))?;
+        result.export(Some(u32::from_le_bytes(patch.read_arr()?)))?;
         Ok(result)
-    }
-
-    fn save(&self, expected_crc: u32) -> Result<Vec<u8>> {
-        let mut buf = Vec::new();
-
-        buf.write_all(Self::MAGIC)?;
-        Self::encode_var_int(&mut buf, self.old_size)?;
-        Self::encode_var_int(&mut buf, self.new_size)?;
-
-        for i in 0..self.records.len() {
-            let mut relative = self.records[i].0;
-            if i > 0 {
-                relative -= self.records[i - 1].0 + self.records[i - 1].1.len();
-            }
-
-            Self::encode_var_int(&mut buf, relative as u64)?;
-            buf.write_all(&self.records[i].1)?;
-        }
-
-        buf.write_all(&self.old_crc.to_le_bytes())?;
-        buf.write_all(&self.new_crc.to_le_bytes())?;
-
-        let hash = crc32fast::hash(&buf);
-        if hash != expected_crc {
-            return Err(Error::InvalidCRC("output file", hash, expected_crc));
-        }
-
-        buf.write_all(&hash.to_le_bytes())?;
-        Ok(buf)
     }
 
     fn decode_var_int(data: &mut impl Read) -> std::io::Result<u64> {
@@ -131,6 +102,37 @@ impl Patch for UpsPatch {
             return Err(Error::InvalidCRC("patched ROM", hash, self.new_crc));
         }
 
+        Ok(buf)
+    }
+
+    fn export(&self, crc: Option<u32>) -> Result<Vec<u8>> {
+        let mut buf = Vec::new();
+
+        buf.write_all(Self::MAGIC)?;
+        Self::encode_var_int(&mut buf, self.old_size)?;
+        Self::encode_var_int(&mut buf, self.new_size)?;
+
+        for i in 0..self.records.len() {
+            let mut relative = self.records[i].0;
+            if i > 0 {
+                relative -= self.records[i - 1].0 + self.records[i - 1].1.len();
+            }
+
+            Self::encode_var_int(&mut buf, relative as u64)?;
+            buf.write_all(&self.records[i].1)?;
+        }
+
+        buf.write_all(&self.old_crc.to_le_bytes())?;
+        buf.write_all(&self.new_crc.to_le_bytes())?;
+
+        let hash = crc32fast::hash(&buf);
+        if let Some(crc) = crc {
+            if hash != crc {
+                return Err(Error::InvalidCRC("output file", hash, crc));
+            }
+        }
+
+        buf.write_all(&hash.to_le_bytes())?;
         Ok(buf)
     }
 }
