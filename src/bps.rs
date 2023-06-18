@@ -133,7 +133,6 @@ impl Patch for BpsPatch {
                     };
                     // we cant use copy_from_slice or extend because we have to be able to read from
                     // the data as we write it
-                    buf.reserve(length);
                     for _ in 0..length {
                         buf.push(buf[out_offset]);
                         out_offset += 1;

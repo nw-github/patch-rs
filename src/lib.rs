@@ -14,12 +14,14 @@ pub mod prelude {
 }
 
 pub(crate) trait ReadExt: Read {
+    #[inline]
     fn read_arr<const N: usize>(&mut self) -> io::Result<[u8; N]> {
         let mut buf = [0u8; N];
         self.read_exact(&mut buf)?;
         Ok(buf)
     }
 
+    #[inline]
     fn read_vec(&mut self, len: usize) -> io::Result<Vec<u8>> {
         let mut buf = vec![0; len];
         self.read_exact(&mut buf)?;
