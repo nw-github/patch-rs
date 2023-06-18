@@ -1,4 +1,4 @@
-use crate::ReadHelper;
+use crate::ReadExt;
 use anyhow::{anyhow, Result};
 use std::io::{BufRead, Read, Write};
 use thiserror::Error;
@@ -21,7 +21,7 @@ pub struct Patch {
 
 impl Patch {
     pub fn load(mut patch: &[u8]) -> Result<Self> {
-        if patch.readn()? != *b"UPS1" {
+        if patch.read_arr()? != *b"UPS1" {
             return Err(anyhow!("Patch file is missing the 'UPS1' magic value."));
         }
 
@@ -42,12 +42,12 @@ impl Patch {
         let result = Self {
             old_size,
             new_size,
-            old_crc: u32::from_le_bytes(patch.readn()?),
-            new_crc: u32::from_le_bytes(patch.readn()?),
+            old_crc: u32::from_le_bytes(patch.read_arr()?),
+            new_crc: u32::from_le_bytes(patch.read_arr()?),
             records,
         };
 
-        result.save(u32::from_le_bytes(patch.readn()?))?;
+        result.save(u32::from_le_bytes(patch.read_arr()?))?;
         Ok(result)
     }
 
