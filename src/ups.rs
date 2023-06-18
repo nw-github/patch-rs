@@ -65,7 +65,7 @@ impl UpsPatch {
 
         let hash = crc32fast::hash(&buf);
         if hash != expected_crc {
-            return Err(Error::InvalidCRC("output file", hash, expected_crc).into());
+            return Err(Error::InvalidCRC("output file", hash, expected_crc));
         }
 
         buf.write_all(&hash.to_le_bytes())?;
@@ -106,13 +106,13 @@ impl Patch for UpsPatch {
     fn apply(&self, rom: &[u8]) -> Result<Vec<u8>> {
         if self.old_size as usize != rom.len() {
             return Err(
-                Error::InvalidSize("ROM file", rom.len(), self.old_size as usize).into(),
+                Error::InvalidSize("ROM file", rom.len(), self.old_size as usize),
             );
         }
 
-        let hash = crc32fast::hash(&rom);
+        let hash = crc32fast::hash(rom);
         if hash != self.old_crc {
-            return Err(Error::InvalidCRC("ROM", hash, self.old_crc).into());
+            return Err(Error::InvalidCRC("ROM", hash, self.old_crc));
         }
 
         let mut buf = Vec::from(rom);
@@ -128,7 +128,7 @@ impl Patch for UpsPatch {
 
         let hash = crc32fast::hash(&buf);
         if hash != self.new_crc {
-            return Err(Error::InvalidCRC("patched ROM", hash, self.new_crc).into());
+            return Err(Error::InvalidCRC("patched ROM", hash, self.new_crc));
         }
 
         Ok(buf)
