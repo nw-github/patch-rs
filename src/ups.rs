@@ -1,15 +1,5 @@
-use crate::{ReadExt, Patch};
-use anyhow::{bail, Result};
+use crate::{Patch, Result, ReadExt, Error};
 use std::io::{BufRead, Read, Write};
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum PatchError {
-    #[error("Size of {0} ({1:#X} bytes) does not match expected value ({2:#X} bytes).")]
-    InvalidSize(&'static str, usize, usize),
-    #[error("CRC of {0} ({1:#X}) does not match expected value ({2:#X}).")]
-    InvalidCRC(&'static str, u32, u32),
-}
 
 pub struct UpsPatch {
     old_size: u64,
@@ -24,10 +14,7 @@ impl UpsPatch {
 
     pub fn load(mut patch: &[u8]) -> Result<Self> {
         if patch.read_arr()? != *Self::MAGIC {
-            bail!(
-                "Patch file is missing the '{}' magic value.",
-                std::str::from_utf8(Self::MAGIC).unwrap()
-            );
+            return Err(Error::Magic(std::str::from_utf8(Self::MAGIC).unwrap()));
         }
 
         let old_size = Self::decode_var_int(&mut patch)?;
@@ -78,7 +65,7 @@ impl UpsPatch {
 
         let hash = crc32fast::hash(&buf);
         if hash != expected_crc {
-            return Err(PatchError::InvalidCRC("output file", hash, expected_crc).into());
+            return Err(Error::InvalidCRC("output file", hash, expected_crc).into());
         }
 
         buf.write_all(&hash.to_le_bytes())?;
@@ -119,13 +106,13 @@ impl Patch for UpsPatch {
     fn apply(&self, rom: &[u8]) -> Result<Vec<u8>> {
         if self.old_size as usize != rom.len() {
             return Err(
-                PatchError::InvalidSize("ROM file", rom.len(), self.old_size as usize).into(),
+                Error::InvalidSize("ROM file", rom.len(), self.old_size as usize).into(),
             );
         }
 
         let hash = crc32fast::hash(&rom);
         if hash != self.old_crc {
-            return Err(PatchError::InvalidCRC("ROM", hash, self.old_crc).into());
+            return Err(Error::InvalidCRC("ROM", hash, self.old_crc).into());
         }
 
         let mut buf = Vec::from(rom);
@@ -141,7 +128,7 @@ impl Patch for UpsPatch {
 
         let hash = crc32fast::hash(&buf);
         if hash != self.new_crc {
-            return Err(PatchError::InvalidCRC("patched ROM", hash, self.new_crc).into());
+            return Err(Error::InvalidCRC("patched ROM", hash, self.new_crc).into());
         }
 
         Ok(buf)

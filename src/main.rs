@@ -23,8 +23,8 @@ fn load_patch(path: impl AsRef<Path>) -> Result<Box<dyn Patch>> {
     let path = path.as_ref();
     let data = fs::read(path)?;
     match path.extension().map(|s| s.to_str()).flatten() {
-        Some("ips") => box_inner!(IpsPatch::load(&data)),
-        Some("ups") => box_inner!(UpsPatch::load(&data)),
+        Some("ips") => Ok(box_inner!(IpsPatch::load(&data))?),
+        Some("ups") => Ok(box_inner!(UpsPatch::load(&data))?),
         _ => {
             if let Ok(patch) = IpsPatch::load(&data) {
                 Ok(Box::new(patch))

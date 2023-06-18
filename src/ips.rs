@@ -1,8 +1,6 @@
 use std::io::{Read, Write};
 
-use anyhow::{bail, Result};
-
-use crate::{ReadExt, Patch};
+use crate::{Error, Patch, ReadExt, Result};
 
 enum Record {
     Bytes(Vec<u8>),
@@ -19,10 +17,7 @@ impl IpsPatch {
 
     pub fn load(mut data: &[u8]) -> Result<Self> {
         if data.read_arr()? != *Self::MAGIC {
-            bail!(
-                "Patch file is missing the '{}' magic value.",
-                std::str::from_utf8(Self::MAGIC).unwrap()
-            );
+            return Err(Error::Magic(std::str::from_utf8(Self::MAGIC).unwrap()));
         }
 
         let mut records = Vec::new();
